@@ -12,24 +12,16 @@ const Matches = () => {
 
   // 🔴 REALTIME LISTENERS
   useEffect(() => {
-    const unsubscribeLost = listenLostItems((lost) => {
-      console.log("Lost items (realtime):", lost.length);
-      setLostItems(lost);
-    });
+    const unsubscribeLost = listenLostItems(setLostItems);
+    const unsubscribeFound = listenFoundItems(setFoundItems);
 
-    const unsubscribeFound = listenFoundItems((found) => {
-      console.log("Found items (realtime):", found.length);
-      setFoundItems(found);
-    });
-
-    // Cleanup listeners on unmount
     return () => {
       unsubscribeLost();
       unsubscribeFound();
     };
   }, []);
 
-  // 🔥 Recompute matches whenever lost/found updates
+  // 🔥 Recompute matches
   useEffect(() => {
     if (lostItems.length === 0 || foundItems.length === 0) {
       setMatches([]);
@@ -38,54 +30,94 @@ const Matches = () => {
     }
 
     const result = buildMatches(lostItems, foundItems);
-
-    console.log("Matches generated:", result.length);
-    console.log("Matches:", result);
-
     setMatches(result);
     setLoading(false);
   }, [lostItems, foundItems]);
 
+  // ⏳ Loading State
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <p className="text-gray-500">Listening for matches...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-500 animate-pulse">
+          🔄 Listening for matches in real time…
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-2">Possible Matches</h2>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-10">
+      <div className="max-w-5xl mx-auto">
 
-      <ConfidenceLegend />
-
-      {matches.length === 0 && (
-        <p className="text-gray-500 mt-4">
-          Waiting for matching lost & found items…
-        </p>
-      )}
-
-      {matches.map((m, i) => (
-        <div
-          key={i}
-          className="border p-4 rounded mb-4 bg-white shadow-sm"
-        >
-          <p className="font-semibold mb-2">
-            {m.lostItem} ↔ {m.foundItem}
+        {/* Header */}
+        <div className="mb-6 text-center">
+          <h2 className="text-3xl font-bold text-slate-800">
+            AI-Detected Matches
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Automatically generated using text, location & time similarity
           </p>
-
-          <ConfidenceBar score={m.score} />
-
-          {m.breakdown && (
-            <div className="text-sm text-gray-600 mt-2">
-              <p>Text: {m.breakdown.text}%</p>
-              <p>Location: {m.breakdown.location}%</p>
-              <p>Time: {m.breakdown.time}%</p>
-            </div>
-          )}
         </div>
-      ))}
+
+        {/* Legend */}
+        <div className="flex justify-center mb-6">
+          <ConfidenceLegend />
+        </div>
+
+        {/* Empty State */}
+        {matches.length === 0 && (
+          <div className="bg-white rounded-xl shadow p-6 text-center text-slate-500">
+            <p className="text-lg">No matches yet</p>
+            <p className="text-sm mt-1">
+              We’ll notify you as soon as a strong match appears.
+            </p>
+          </div>
+        )}
+
+        {/* Matches */}
+        <div className="space-y-4">
+          {matches.map((m, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl shadow-md p-5 hover:shadow-lg transition"
+            >
+              {/* Match Header */}
+              <div className="flex justify-between items-center mb-3">
+                <p className="font-semibold text-slate-800">
+                  {m.lostItem} <span className="text-slate-400">↔</span>{" "}
+                  {m.foundItem}
+                </p>
+
+                <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">
+                  Match #{i + 1}
+                </span>
+              </div>
+
+              {/* Confidence Bar */}
+              <ConfidenceBar score={m.score} />
+
+              {/* Breakdown */}
+              {m.breakdown && (
+                <div className="grid grid-cols-3 gap-4 text-sm text-slate-600 mt-4">
+                  <div>
+                    <p className="font-medium text-slate-700">Text</p>
+                    <p>{m.breakdown.text}%</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-700">Location</p>
+                    <p>{m.breakdown.location}%</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-700">Time</p>
+                    <p>{m.breakdown.time}%</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+      </div>
     </div>
   );
 };

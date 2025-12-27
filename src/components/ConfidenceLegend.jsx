@@ -20,3 +20,4 @@ const ConfidenceLegend = () => {
 };
 
 export default ConfidenceLegend;
+// 

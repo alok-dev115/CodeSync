@@ -4,7 +4,7 @@ import React from 'react'
 const Navbar = () => {
   return (
     <nav className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
-      <h1 className="text-xl font-bold">Lost & Found</h1>
+      <h1 className="text-xl font-bold">CampusSync</h1>
 
       <div className="space-x-4">
         <Link to="/" className="hover:text-slate-300">Home</Link>
