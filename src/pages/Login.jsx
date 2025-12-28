@@ -1,80 +1,139 @@
-import { useState } from "react"; 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "../firebase/firebaseConfig";
 
-export default function Login() {
-  const { login, googleLogin } = useAuth();
+const Login = () => {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  // 🔐 Email/Password Login
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
     try {
-      setError("");
-      await login(email, password);
-      navigate("/dashboard");
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate("/"); // go to Home (dashboard UI is there)
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // 🔐 Google Login
   const handleGoogleLogin = async () => {
+    setError("");
     try {
-      setError("");
-      await googleLogin();
-      navigate("/dashboard");
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      navigate("/");
     } catch (err) {
       setError(err.message);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-      <div className="bg-white shadow-xl rounded-2xl p-10 max-w-md w-full">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Login to Lost & Found</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
+      <div className="bg-white/80 backdrop-blur-xl w-full max-w-md rounded-3xl shadow-2xl p-10">
 
+        {/* Header */}
+        <h1 className="text-3xl font-bold text-slate-800 text-center mb-2">
+          Login to Lost & Found
+        </h1>
+        <p className="text-slate-600 text-center mb-8 text-sm">
+          Access your dashboard and manage reports
+        </p>
+
+        {/* Error */}
         {error && (
-          <p className="text-red-500 mb-4 text-center">{error}</p>
+          <div className="mb-4 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-md">
+            {error}
+          </div>
         )}
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-4 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
+        {/* Form */}
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="
+              w-full px-4 py-3 rounded-xl border border-slate-300
+              focus:outline-none focus:ring-2 focus:ring-blue-500
+            "
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-6 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="
+              w-full px-4 py-3 rounded-xl border border-slate-300
+              focus:outline-none focus:ring-2 focus:ring-blue-500
+            "
+          />
 
-        <button
-          onClick={handleLogin}
-          className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition duration-300 mb-4"
-        >
-          Login
-        </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="
+              w-full bg-blue-600 text-white py-3 rounded-xl font-semibold
+              hover:bg-blue-700 hover:-translate-y-0.5
+              transition-all duration-200 shadow-md
+              disabled:opacity-60 disabled:cursor-not-allowed
+            "
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
 
-        <div className="flex items-center my-4">
-          <hr className="flex-grow border-gray-300" />
-          <span className="mx-2 text-gray-400">OR</span>
-          <hr className="flex-grow border-gray-300" />
+        {/* Divider */}
+        <div className="flex items-center my-6">
+          <div className="flex-grow h-px bg-slate-300" />
+          <span className="px-4 text-sm text-slate-500">OR</span>
+          <div className="flex-grow h-px bg-slate-300" />
         </div>
 
+        {/* Google Login */}
         <button
           onClick={handleGoogleLogin}
-          className="w-full bg-red-500 text-white font-semibold py-3 rounded-lg hover:bg-red-600 transition duration-300"
+          className="
+            w-full bg-red-500 text-white py-3 rounded-xl font-semibold
+            hover:bg-red-600 hover:-translate-y-0.5
+            transition-all duration-200 shadow-md
+          "
         >
           Login with Google
         </button>
+
+        {/* Footer */}
+        <p className="mt-6 text-center text-sm text-slate-600">
+          Don’t have an account?{" "}
+          <span
+            onClick={() => navigate("/register")}
+            className="text-blue-600 font-medium cursor-pointer hover:underline"
+          >
+            Register
+          </span>
+        </p>
       </div>
     </div>
   );
-}
+};
+
+export default Login;
