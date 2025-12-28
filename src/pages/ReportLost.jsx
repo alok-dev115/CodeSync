@@ -27,9 +27,23 @@ const ReportLost = () => {
     setSuccess(false);
 
     try {
-      const lostAt = Timestamp.fromDate(
-        new Date(`${date}T${time}`)
+      // 🔒 SAFEST POSSIBLE DATE CREATION (NO STRING PARSING)
+      const [year, month, day] = date.split("-").map(Number);
+      const [hours, minutes] = time.split(":").map(Number);
+
+      const jsDate = new Date(
+        year,
+        month - 1, // JS months are 0-based
+        day,
+        hours,
+        minutes
       );
+
+      if (isNaN(jsDate.getTime())) {
+        throw new Error("Invalid date/time input");
+      }
+
+      const lostAt = Timestamp.fromDate(jsDate);
 
       const textEmbedding = ngramEmbedding(
         itemName + " " + description
@@ -59,68 +73,93 @@ const ReportLost = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">Report Lost Item</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
+      <div className="bg-white/80 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl p-10">
 
-      {success && (
-        <p className="mb-4 text-green-600">
-          Lost item reported successfully
+        {/* Header */}
+        <h2 className="text-3xl font-bold text-slate-800 text-center mb-2">
+          Report Lost Item
+        </h2>
+        <p className="text-slate-600 text-center mb-8 text-sm">
+          Let us help you recover your lost belongings
         </p>
-      )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="itemName"
-          value={itemName}
-          onChange={handleChange}
-          placeholder="Item Name"
-          required
-          className="w-full border p-2 rounded"
-        />
+        {/* Success Message */}
+        {success && (
+          <div className="mb-6 text-green-700 bg-green-50 px-4 py-3 rounded-lg text-sm text-center">
+            ✅ Lost item reported successfully
+          </div>
+        )}
 
-        <input
-          name="location"
-          value={location}
-          onChange={handleChange}
-          placeholder="Lost Location"
-          required
-          className="w-full border p-2 rounded"
-        />
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
 
-        <input
-          type="date"
-          name="date"
-          value={date}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded"
-        />
+          <input
+            name="itemName"
+            value={itemName}
+            onChange={handleChange}
+            placeholder="Item Name"
+            required
+            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
 
-        <input
-          type="time"
-          name="time"
-          value={time}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded"
-        />
+          <input
+            name="location"
+            value={location}
+            onChange={handleChange}
+            placeholder="Lost Location"
+            required
+            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
 
-        <textarea
-          name="description"
-          value={description}
-          onChange={handleChange}
-          placeholder="Description"
-          required
-          className="w-full border p-2 rounded"
-        />
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              type="date"
+              name="date"
+              value={date}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
 
-        <button
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded"
-        >
-          {loading ? "Submitting..." : "Submit Lost Item"}
-        </button>
-      </form>
+            <input
+              type="time"
+              name="time"
+              value={time}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
+          <textarea
+            name="description"
+            value={description}
+            onChange={handleChange}
+            placeholder="Describe the item (color, brand, last seen details, etc.)"
+            required
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+          />
+
+          <button
+            disabled={loading}
+            className="
+              w-full bg-blue-600 text-white py-3 rounded-xl font-semibold
+              hover:bg-blue-700 hover:-translate-y-0.5
+              transition-all duration-200 shadow-md
+              disabled:opacity-60 disabled:cursor-not-allowed
+            "
+          >
+            {loading ? "Submitting..." : "Submit Lost Item"}
+          </button>
+        </form>
+
+        {/* Footer hint */}
+        <p className="mt-6 text-xs text-slate-500 text-center">
+          We’ll notify you when a potential match is found
+        </p>
+      </div>
     </div>
   );
 };
