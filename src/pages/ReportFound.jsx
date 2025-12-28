@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import axios from "axios";
 import { Timestamp } from "firebase/firestore";
-import { addFoundItem } from "../firebase/foundItems";
+import { addFoundItem } from "../firebase/addItem";
 import { ngramEmbedding } from "../utils/ngramEmbedding";
 
 const ReportFound = () => {
@@ -12,13 +13,28 @@ const ReportFound = () => {
     description: "",
   });
 
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const fileInputRef = useRef(null);
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const { itemName, location, date, time, description } = form;
-
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImage(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImage(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e) => {
@@ -27,34 +43,37 @@ const ReportFound = () => {
     setSuccess(false);
 
     try {
-      // 🔒 SAFEST POSSIBLE DATE CREATION (NO PARSING)
-      const [year, month, day] = date.split("-").map(Number);
-      const [hours, minutes] = time.split(":").map(Number);
-
-      const jsDate = new Date(
-        year,
-        month - 1, // JS months are 0-based
-        day,
-        hours,
-        minutes
+      const [y, m, d] = form.date.split("-");
+      const [h, min] = form.time.split(":");
+      const foundAt = Timestamp.fromDate(
+        new Date(y, m - 1, d, h, min)
       );
-
-      if (isNaN(jsDate.getTime())) {
-        throw new Error("Invalid date/time input");
-      }
-
-      const foundAt = Timestamp.fromDate(jsDate);
 
       const textEmbedding = ngramEmbedding(
-        itemName + " " + description
+        form.itemName + " " + form.description
       );
 
+      let imageUrl = "";
+
+      if (image) {
+        const fd = new FormData();
+        fd.append("image", image);
+
+        const res = await axios.post(
+          "http://localhost:5000/upload",
+          fd
+        );
+
+        imageUrl = res.data.imageUrl;
+      }
+
       await addFoundItem({
-        itemName,
-        location,
-        description,
+        itemName: form.itemName,
+        location: form.location,
+        description: form.description,
         foundAt,
         textEmbedding,
+        imageUrl,
       });
 
       setSuccess(true);
@@ -65,6 +84,7 @@ const ReportFound = () => {
         time: "",
         description: "",
       });
+      removeImage();
     } catch (err) {
       console.error("Error adding found item:", err);
     }
@@ -74,10 +94,12 @@ const ReportFound = () => {
 
   return (
     <div className="max-w-xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">Report Found Item</h2>
+      <h2 className="text-2xl font-bold mb-4">
+        Report Found Item
+      </h2>
 
       {success && (
-        <p className="mb-4 text-green-600">
+        <p className="text-green-600 mb-4">
           Found item reported successfully
         </p>
       )}
@@ -85,18 +107,18 @@ const ReportFound = () => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           name="itemName"
-          value={itemName}
-          onChange={handleChange}
           placeholder="Item Name"
+          value={form.itemName}
+          onChange={handleChange}
           required
           className="w-full border p-2 rounded"
         />
 
         <input
           name="location"
-          value={location}
-          onChange={handleChange}
           placeholder="Found Location"
+          value={form.location}
+          onChange={handleChange}
           required
           className="w-full border p-2 rounded"
         />
@@ -104,7 +126,7 @@ const ReportFound = () => {
         <input
           type="date"
           name="date"
-          value={date}
+          value={form.date}
           onChange={handleChange}
           required
           className="w-full border p-2 rounded"
@@ -113,7 +135,7 @@ const ReportFound = () => {
         <input
           type="time"
           name="time"
-          value={time}
+          value={form.time}
           onChange={handleChange}
           required
           className="w-full border p-2 rounded"
@@ -121,12 +143,44 @@ const ReportFound = () => {
 
         <textarea
           name="description"
-          value={description}
-          onChange={handleChange}
           placeholder="Description"
+          value={form.description}
+          onChange={handleChange}
           required
           className="w-full border p-2 rounded"
         />
+
+        {/* 📷 IMAGE UPLOAD ICON */}
+        {!preview && (
+          <label className="cursor-pointer inline-flex items-center gap-2 text-blue-600 font-medium">
+            📷 Upload Image
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={handleImageChange}
+            />
+          </label>
+        )}
+
+        {preview && (
+          <div className="space-y-2">
+            <img
+              src={preview}
+              alt="preview"
+              className="w-40 h-40 object-cover border rounded"
+            />
+            <button
+              type="button"
+              onClick={removeImage}
+              className="text-red-600 text-sm"
+            >
+              Remove Image
+            </button>
+          </div>
+        )}
 
         <button
           disabled={loading}
