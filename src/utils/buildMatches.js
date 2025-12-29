@@ -1,87 +1,148 @@
-export const buildMatches = (lostItems, foundItems) => {
-    const matches = [];
+import { compareImages } from "./imageMatcher";
 
-    for (const lost of lostItems) {
-        for (const found of foundItems) {
-            // 1️⃣ TEXT SIMILARITY
-            const textSim = cosineSimilarity(
-                lost.textEmbedding,
-                found.textEmbedding
-            );
+/**
+ * 🔥 Main Matching Engine
+ * - Phase 1: Fast pre-filter (text + location + time)
+ * - Phase 2: Auto image scan on top candidates
+ * - Phase 3: Final weighted score & UI-ready output
+ */
+export const buildMatches = async (lostItems, foundItems) => {
+  const candidates = [];
 
-            // 2️⃣ LOCATION MATCH
-            const locScore = locationScore(
-                lost.location,
-                found.location
-            );
+  // 1️⃣ Base scoring pass (cheap operations only)
+  for (const lost of lostItems) {
+    for (const found of foundItems) {
+      const textScore = cosineSimilarity(
+        lost.textEmbedding,
+        found.textEmbedding
+      );
 
-            // 3️⃣ TIME PROXIMITY
-            const tScore = timeScore(
-                lost.lostAt,
-                found.foundAt
-            );
+      const locScore = locationScore(lost.location, found.location);
+      const timeScoreVal = timeScore(lost.lostAt, found.foundAt);
 
-            // 🔥 FINAL WEIGHTED SCORE
-            const finalScore =
-                textSim * 60 +
-                locScore * 25 +
-                tScore * 15;
+      // Base score (used ONLY for filtering & ranking)
+      const baseScore =
+        textScore * 60 +
+        locScore * 25 +
+        timeScoreVal * 15;
 
-            // Threshold to avoid junk matches
-            if (finalScore >= 50) {
-                matches.push({
-                    lostItem: lost.itemName,
-                    foundItem: found.itemName,
-                    score: finalScore,
-                    breakdown: {
-                        text: Math.round(textSim * 60),
-                        location: Math.round(locScore * 25),
-                        time: Math.round(tScore * 15),
-                    },
-                });
-            }
-        }
+      if (baseScore >= 30) {
+        candidates.push({
+          lost,
+          found,
+
+          lostImage: lost.image || lost.imageUrl || lost.img || null,
+          foundImage: found.image || found.imageUrl || found.img || null,
+
+          textScore,
+          locScore,
+          timeScore: timeScoreVal,
+          baseScore,
+
+          imageScore: 0,
+          isScanned: false,
+        });
+      }
     }
+  }
 
-    // Sort best match first
-    matches.sort((a, b) => b.score - a.score);
+  // 2️⃣ Sort candidates by base score
+  candidates.sort((a, b) => b.baseScore - a.baseScore);
 
-    return matches;
+  // 3️⃣ Auto image scan (Top 5 only)
+  const topMatches = candidates.slice(0, 5);
+
+  for (const match of topMatches) {
+    if (match.lostImage && match.foundImage) {
+      try {
+        const aiResult = await compareImages(
+          match.lostImage,
+          match.foundImage
+        );
+
+        match.imageScore = aiResult.similarityScore / 100; // normalize
+        match.isScanned = true;
+      } catch (err) {
+        console.error("Image scan failed:", err);
+      }
+    }
+  }
+
+  // 4️⃣ Final scoring & UI formatting
+  return candidates
+    .map((m) => {
+      let finalScore = m.baseScore;
+
+      if (m.isScanned) {
+        // Refined AI-weighted score
+        finalScore =
+          m.textScore * 40 +
+          m.imageScore * 30 +
+          m.locScore * 20 +
+          m.timeScore * 10;
+      }
+
+      return {
+        lostItem: m.lost.itemName,
+        foundItem: m.found.itemName,
+
+        lostItemImage: m.lostImage,
+        foundItemImage: m.foundImage,
+
+        rawLostItem: m.lost,
+        rawFoundItem: m.found,
+
+        score: finalScore,
+        isScanned: m.isScanned,
+
+        breakdown: {
+          text: Math.round(m.textScore * 60),
+          location: Math.round(m.locScore * 25),
+          time: Math.round(m.timeScore * 15),
+          image: m.isScanned
+            ? Math.round(m.imageScore * 100)
+            : null,
+        },
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 };
 
-// ===== Helpers =====
+/* ================= HELPERS ================= */
 
 const cosineSimilarity = (a, b) => {
-    if (!a || !b) return 0;
-    if (a.length !== b.length) return 0;
+  if (!a || !b || a.length !== b.length) return 0;
 
-    let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
 
-    for (let i = 0; i < a.length; i++) {
-        dot += a[i] * b[i];
-        normA += a[i] * a[i];
-        normB += b[i] * b[i];
-    }
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
 
-    if (normA === 0 || normB === 0) return 0;
+  if (normA === 0 || normB === 0) return 0;
 
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 };
 
-
 const locationScore = (l1, l2) => {
-    if (!l1 || !l2) return 0;
-    return l1.toLowerCase() === l2.toLowerCase() ? 1 : 0;
+  if (!l1 || !l2) return 0;
+  return l1.trim().toLowerCase() === l2.trim().toLowerCase() ? 1 : 0;
 };
 
 const timeScore = (lostAt, foundAt) => {
-    if (!lostAt || !foundAt) return 0;
+  if (!lostAt || !foundAt) return 0;
 
-    const diffHours =
-        Math.abs(foundAt.toDate() - lostAt.toDate()) / (1000 * 60 * 60);
+  const d1 = lostAt.toDate ? lostAt.toDate() : new Date(lostAt);
+  const d2 = foundAt.toDate ? foundAt.toDate() : new Date(foundAt);
 
-    if (diffHours <= 1) return 1;
-    if (diffHours >= 24) return 0;
+  const diffHours = Math.abs(d1 - d2) / (1000 * 60 * 60);
 
-    return 1 - diffHours / 24;
+  if (diffHours <= 1) return 1;
+  if (diffHours >= 24) return 0;
+
+  return 1 - diffHours / 24;
 };

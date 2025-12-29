@@ -1,26 +1,31 @@
+import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import Navbar from "./components/Navbar";
+import ProtectedRoute from "./components/ProtectedRoute";
+
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import ProtectedRoute from "./components/ProtectedRoute";
 import ReportLost from "./pages/ReportLost";
 import ReportFound from "./pages/ReportFound";
 import Matches from "./pages/Matches";
-import React from 'react'
+// import TestImage from "./pages/TestImage";
 
 function App() {
   return (
     <BrowserRouter>
       <Navbar />
-       <Routes>
-        {/* Public Pages */}
+
+      <Routes>
+        {/* 🌐 Public Pages */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        {/* <Route path="/test-image" element={<TestImage />} /> */}
 
-        {/* Protected Pages */}
+        {/* 🔐 Protected Pages */}
         <Route
           path="/dashboard"
           element={

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { buildMatches } from "../utils/buildMatches";
+import { compareImages } from "../utils/imageMatcher";
 import { listenLostItems, listenFoundItems } from "../firebase/realtimeItems";
 import ConfidenceBar from "../components/ConfidenceBar";
 import ConfidenceLegend from "../components/ConfidenceLegend";
@@ -9,42 +10,75 @@ const Matches = () => {
   const [foundItems, setFoundItems] = useState([]);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scanningId, setScanningId] = useState(null);
 
-  // 🔴 REALTIME LISTENERS
+  // 🔴 Realtime listeners
   useEffect(() => {
-    const unsubscribeLost = listenLostItems((lost) => {
-      setLostItems(lost);
-    });
-
-    const unsubscribeFound = listenFoundItems((found) => {
-      setFoundItems(found);
-    });
+    const unsubLost = listenLostItems(setLostItems);
+    const unsubFound = listenFoundItems(setFoundItems);
 
     return () => {
-      unsubscribeLost();
-      unsubscribeFound();
+      unsubLost();
+      unsubFound();
     };
   }, []);
 
-  // 🔥 Recompute matches whenever lost/found updates
+  // 🔥 Async match generation (auto image scan included)
   useEffect(() => {
-    if (lostItems.length === 0 || foundItems.length === 0) {
-      setMatches([]);
+    const generateMatches = async () => {
+      if (lostItems.length === 0 || foundItems.length === 0) {
+        setMatches([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      const result = await buildMatches(lostItems, foundItems);
+      setMatches(result);
       setLoading(false);
-      return;
+    };
+
+    generateMatches();
+  }, [lostItems, foundItems]);
+
+  // 👆 Manual image scan
+  const handleManualScan = async (index, match) => {
+    setScanningId(index);
+
+    try {
+      const result = await compareImages(
+        match.lostItemImage,
+        match.foundItemImage
+      );
+
+      const imgScore = result.similarityScore;
+
+      const updated = [...matches];
+      updated[index] = {
+        ...updated[index],
+        isScanned: true,
+        breakdown: {
+          ...updated[index].breakdown,
+          image: imgScore,
+        },
+        score: updated[index].score * 0.7 + imgScore * 0.3,
+      };
+
+      updated.sort((a, b) => b.score - a.score);
+      setMatches(updated);
+    } catch (err) {
+      console.error("Manual scan failed", err);
     }
 
-    const result = buildMatches(lostItems, foundItems);
-    setMatches(result);
-    setLoading(false);
-  }, [lostItems, foundItems]);
+    setScanningId(null);
+  };
 
   // ⏳ Loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50">
-        <p className="text-slate-500 text-sm animate-pulse">
-          Listening for matches…
+        <p className="text-slate-500 text-lg animate-pulse">
+          🤖 AI is analyzing matches...
         </p>
       </div>
     );
@@ -53,51 +87,83 @@ const Matches = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6 py-16">
       <div className="max-w-5xl mx-auto">
-
-        {/* Header */}
-        <h2 className="text-3xl font-bold text-slate-800 mb-2 text-center">
+        <h2 className="text-3xl font-bold text-slate-800 text-center mb-2">
           Possible Matches
         </h2>
         <p className="text-slate-600 text-center mb-8 text-sm">
-          AI-generated matches based on text, location, and time similarity
+          Matches based on text, location, time & image similarity
         </p>
 
         <div className="flex justify-center mb-6">
           <ConfidenceLegend />
         </div>
 
-        {/* Empty State */}
         {matches.length === 0 && (
           <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-md p-10 text-center text-slate-600">
-            No strong matches yet. <br />
-            New reports will appear here automatically.
+            No strong matches yet.
           </div>
         )}
 
-        {/* Matches */}
         <div className="space-y-6">
           {matches.map((m, i) => (
             <div
               key={i}
-              className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg p-6 transition hover:shadow-xl"
+              className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg p-6"
             >
-              {/* Title */}
-              <h3 className="text-lg font-semibold text-slate-800 mb-3">
-                {m.lostItem} <span className="text-slate-400">↔</span>{" "}
-                {m.foundItem}
+              {/* Images */}
+              <div className="flex justify-center gap-8 mb-4">
+                {m.lostItemImage && (
+                  <div className="text-center">
+                    <img
+                      src={m.lostItemImage}
+                      className="w-24 h-24 object-cover rounded-lg border border-red-200"
+                    />
+                    <span className="text-xs text-red-500 font-bold block mt-1">
+                      LOST
+                    </span>
+                  </div>
+                )}
+                {m.foundItemImage && (
+                  <div className="text-center">
+                    <img
+                      src={m.foundItemImage}
+                      className="w-24 h-24 object-cover rounded-lg border border-green-200"
+                    />
+                    <span className="text-xs text-green-500 font-bold block mt-1">
+                      FOUND
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <h3 className="text-lg font-semibold text-center text-slate-800 mb-3">
+                {m.lostItem} <span className="mx-2">↔</span> {m.foundItem}
               </h3>
 
-              {/* Confidence */}
               <ConfidenceBar score={m.score} />
 
-              {/* Breakdown */}
-              {m.breakdown && (
-                <div className="grid grid-cols-3 gap-4 text-sm text-slate-600 mt-4">
-                  <Breakdown label="Text Match" value={m.breakdown.text} />
-                  <Breakdown label="Location Match" value={m.breakdown.location} />
-                  <Breakdown label="Time Match" value={m.breakdown.time} />
-                </div>
-              )}
+              <div className="grid grid-cols-4 gap-4 text-sm mt-4">
+                <Breakdown label="Text" value={m.breakdown.text + "%"} />
+
+                {m.breakdown.image !== null ? (
+                  <Breakdown label="Image" value={m.breakdown.image + "%"} />
+                ) : (
+                  <button
+                    onClick={() => handleManualScan(i, m)}
+                    disabled={
+                      scanningId === i ||
+                      !m.lostItemImage ||
+                      !m.foundItemImage
+                    }
+                    className="bg-gray-100 rounded-xl p-3 hover:bg-indigo-600 hover:text-white transition disabled:opacity-50"
+                  >
+                    {scanningId === i ? "Scanning…" : "Analyze 🖼️"}
+                  </button>
+                )}
+
+                <Breakdown label="Loc" value={m.breakdown.location + "%"} />
+                <Breakdown label="Time" value={m.breakdown.time + "%"} />
+              </div>
             </div>
           ))}
         </div>
@@ -106,11 +172,10 @@ const Matches = () => {
   );
 };
 
-// 🔹 Small reusable breakdown block
 const Breakdown = ({ label, value }) => (
   <div className="bg-slate-50 rounded-xl p-3 text-center">
     <p className="font-medium text-slate-700">{label}</p>
-    <p className="text-blue-600 font-bold">{value}%</p>
+    <p className="text-blue-600 font-bold">{value}</p>
   </div>
 );
 
