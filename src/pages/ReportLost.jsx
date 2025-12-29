@@ -52,20 +52,14 @@ const ReportLost = () => {
     setSuccess(false);
 
     try {
-      // 🔒 SAFEST DATE CREATION (NO STRING PARSING)
+      // ✅ Safe Date Handling
       const [year, month, day] = date.split("-").map(Number);
       const [hours, minutes] = time.split(":").map(Number);
 
-      const jsDate = new Date(
-        year,
-        month - 1,
-        day,
-        hours,
-        minutes
-      );
+      const jsDate = new Date(year, month - 1, day, hours, minutes);
 
       if (isNaN(jsDate.getTime())) {
-        throw new Error("Invalid date/time input");
+        throw new Error("Invalid date/time");
       }
 
       const lostAt = Timestamp.fromDate(jsDate);
@@ -76,7 +70,7 @@ const ReportLost = () => {
 
       let imageUrl = "";
 
-      // 📷 UPLOAD IMAGE
+      // 📷 Upload image (optional)
       if (image) {
         const formData = new FormData();
         formData.append("image", image);
@@ -89,7 +83,7 @@ const ReportLost = () => {
         imageUrl = res.data.imageUrl;
       }
 
-      // 🔥 SAVE TO FIRESTORE
+      // 🔥 Save to Firestore
       await addLostItem({
         itemName,
         location,
@@ -109,7 +103,7 @@ const ReportLost = () => {
       });
       removeImage();
     } catch (err) {
-      console.error("Error adding lost item:", err);
+      console.error("Error reporting lost item:", err);
     }
 
     setLoading(false);
@@ -189,34 +183,67 @@ const ReportLost = () => {
 
           {/* 📷 IMAGE UPLOAD */}
           <div className="space-y-2">
-            {!preview && (
-              <label className="cursor-pointer inline-flex items-center gap-2 text-blue-600 font-medium">
-                📷 Upload Image
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  hidden
-                  onChange={handleImageChange}
-                />
-              </label>
-            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={handleImageChange}
+            />
 
-            {preview && (
-              <div className="relative w-40">
+            {!preview ? (
+              <div
+                onClick={() => fileInputRef.current.click()}
+                className="
+                  border-2 border-dashed border-slate-300
+                  rounded-2xl p-6 text-center cursor-pointer
+                  hover:border-blue-500 hover:bg-blue-50/40
+                  transition-all duration-200
+                "
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="text-3xl">📷</div>
+                  <p className="font-medium text-slate-700">
+                    Upload an image of the item
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Improves matching accuracy
+                  </p>
+                  <span className="mt-1 text-xs text-blue-600 font-semibold">
+                    Click to browse
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="relative w-full">
                 <img
                   src={preview}
                   alt="preview"
-                  className="w-40 h-40 object-cover rounded-xl border"
+                  className="
+                    w-full h-48 object-cover rounded-2xl
+                    border border-slate-200 shadow-sm
+                  "
                 />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs"
-                >
-                  ✕
-                </button>
+
+                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition flex items-center justify-center rounded-2xl">
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current.click()}
+                      className="bg-white px-4 py-2 rounded-lg text-sm font-medium shadow"
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

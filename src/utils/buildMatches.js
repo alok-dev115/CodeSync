@@ -2,14 +2,23 @@ import { compareImages } from "./imageMatcher";
 
 /**
  * 🔥 Main Matching Engine
- * - Phase 1: Fast pre-filter (text + location + time)
- * - Phase 2: Auto image scan on top candidates
- * - Phase 3: Final weighted score & UI-ready output
+ * Phase 1: Text + Location + Time (cheap)
+ * Phase 2: Auto Image Scan (Top 5 only)
+ * Phase 3: Final Weighted Score
  */
+
+// ✅ Helper to validate real image URLs
+const isValidImageUrl = (url) => {
+  return (
+    typeof url === "string" &&
+    (url.startsWith("http://") || url.startsWith("https://"))
+  );
+};
+
 export const buildMatches = async (lostItems, foundItems) => {
   const candidates = [];
 
-  // 1️⃣ Base scoring pass (cheap operations only)
+  // 1️⃣ BASE SCORING (FAST FILTER)
   for (const lost of lostItems) {
     for (const found of foundItems) {
       const textScore = cosineSimilarity(
@@ -20,61 +29,66 @@ export const buildMatches = async (lostItems, foundItems) => {
       const locScore = locationScore(lost.location, found.location);
       const timeScoreVal = timeScore(lost.lostAt, found.foundAt);
 
-      // Base score (used ONLY for filtering & ranking)
       const baseScore =
         textScore * 60 +
         locScore * 25 +
         timeScoreVal * 15;
 
-      if (baseScore >= 30) {
-        candidates.push({
-          lost,
-          found,
+      if (baseScore < 30) continue;
 
-          lostImage: lost.image || lost.imageUrl || lost.img || null,
-          foundImage: found.image || found.imageUrl || found.img || null,
+      // ✅ SAFELY extract image URLs
+      const lostImage =
+        isValidImageUrl(lost.imageUrl) ? lost.imageUrl : null;
 
-          textScore,
-          locScore,
-          timeScore: timeScoreVal,
-          baseScore,
+      const foundImage =
+        isValidImageUrl(found.imageUrl) ? found.imageUrl : null;
 
-          imageScore: 0,
-          isScanned: false,
-        });
-      }
+      candidates.push({
+        lost,
+        found,
+
+        lostImage,
+        foundImage,
+
+        textScore,
+        locScore,
+        timeScore: timeScoreVal,
+        baseScore,
+
+        imageScore: 0,
+        isScanned: false,
+      });
     }
   }
 
-  // 2️⃣ Sort candidates by base score
+  // 2️⃣ SORT BY BASE SCORE
   candidates.sort((a, b) => b.baseScore - a.baseScore);
 
-  // 3️⃣ Auto image scan (Top 5 only)
+  // 3️⃣ AUTO IMAGE SCAN (TOP 5 ONLY)
   const topMatches = candidates.slice(0, 5);
 
   for (const match of topMatches) {
-    if (match.lostImage && match.foundImage) {
-      try {
-        const aiResult = await compareImages(
-          match.lostImage,
-          match.foundImage
-        );
+    if (!match.lostImage || !match.foundImage) continue;
 
-        match.imageScore = aiResult.similarityScore / 100; // normalize
-        match.isScanned = true;
-      } catch (err) {
-        console.error("Image scan failed:", err);
-      }
+    try {
+      const aiResult = await compareImages(
+        match.lostImage,
+        match.foundImage
+      );
+
+      match.imageScore = aiResult.similarityScore / 100;
+      match.isScanned = true;
+    } catch (err) {
+      console.error("Image scan failed:", err);
     }
   }
 
-  // 4️⃣ Final scoring & UI formatting
+  // 4️⃣ FINAL SCORE + UI FORMAT
   return candidates
     .map((m) => {
       let finalScore = m.baseScore;
 
       if (m.isScanned) {
-        // Refined AI-weighted score
         finalScore =
           m.textScore * 40 +
           m.imageScore * 30 +
@@ -83,8 +97,8 @@ export const buildMatches = async (lostItems, foundItems) => {
       }
 
       return {
-        lostItem: m.lost.itemName,
-        foundItem: m.found.itemName,
+        lostItem: m.lost.itemName || "Unknown",
+        foundItem: m.found.itemName || "Unknown",
 
         lostItemImage: m.lostImage,
         foundItemImage: m.foundImage,
@@ -92,7 +106,7 @@ export const buildMatches = async (lostItems, foundItems) => {
         rawLostItem: m.lost,
         rawFoundItem: m.found,
 
-        score: finalScore,
+        score: Math.round(finalScore),
         isScanned: m.isScanned,
 
         breakdown: {

@@ -23,6 +23,7 @@ const ReportFound = () => {
   const [success, setSuccess] = useState(false);
 
   /* -------------------- HANDLERS -------------------- */
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -38,17 +39,20 @@ const ReportFound = () => {
   const removeImage = () => {
     setImage(null);
     setPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   /* -------------------- SUBMIT -------------------- */
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setSuccess(false);
 
     try {
-      // 🔒 SAFE JS DATE CREATION
+      // ✅ Safe Date Handling
       const [year, month, day] = date.split("-").map(Number);
       const [hours, minutes] = time.split(":").map(Number);
 
@@ -57,12 +61,13 @@ const ReportFound = () => {
 
       const foundAt = Timestamp.fromDate(jsDate);
 
-      // 🔍 Text embedding
-      const textEmbedding = ngramEmbedding(itemName + " " + description);
+      const textEmbedding = ngramEmbedding(
+        itemName + " " + description
+      );
 
       let imageUrl = "";
 
-      // 📷 IMAGE UPLOAD
+      // 📷 Upload image (optional)
       if (image) {
         const formData = new FormData();
         formData.append("image", image);
@@ -86,16 +91,23 @@ const ReportFound = () => {
       });
 
       setSuccess(true);
-      setForm({ itemName: "", location: "", date: "", time: "", description: "" });
+      setForm({
+        itemName: "",
+        location: "",
+        date: "",
+        time: "",
+        description: "",
+      });
       removeImage();
     } catch (err) {
-      console.error("Error submitting found item:", err);
+      console.error("Error reporting found item:", err);
     } finally {
       setLoading(false);
     }
   };
 
   /* -------------------- UI -------------------- */
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
       <div className="bg-white/80 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl p-10">
@@ -145,6 +157,7 @@ const ReportFound = () => {
               required
               className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
             />
+
             <input
               type="time"
               name="time"
@@ -165,43 +178,81 @@ const ReportFound = () => {
             className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
           />
 
-          {/* 📷 IMAGE UPLOAD */}
+          {/* 📷 IMAGE UPLOAD (BEAUTIFIED) */}
           <div className="space-y-2">
-            {!preview && (
-              <label className="cursor-pointer inline-flex items-center gap-2 text-blue-600 font-medium">
-                📷 Upload Image
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  hidden
-                  onChange={handleImageChange}
-                />
-              </label>
-            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={handleImageChange}
+            />
 
-            {preview && (
-              <div className="relative w-40">
+            {!preview ? (
+              <div
+                onClick={() => fileInputRef.current.click()}
+                className="
+                  border-2 border-dashed border-slate-300
+                  rounded-2xl p-6 text-center cursor-pointer
+                  hover:border-blue-500 hover:bg-blue-50/40
+                  transition-all duration-200
+                "
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="text-3xl">📷</div>
+                  <p className="font-medium text-slate-700">
+                    Upload an image of the found item
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    This helps match it to reported losses
+                  </p>
+                  <span className="mt-1 text-xs text-blue-600 font-semibold">
+                    Click to browse
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="relative w-full">
                 <img
                   src={preview}
                   alt="preview"
-                  className="w-40 h-40 object-cover rounded-xl border"
+                  className="
+                    w-full h-48 object-cover rounded-2xl
+                    border border-slate-200 shadow-sm
+                  "
                 />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs"
-                >
-                  ✕
-                </button>
+
+                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition flex items-center justify-center rounded-2xl">
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current.click()}
+                      className="bg-white px-4 py-2 rounded-lg text-sm font-medium shadow"
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
           <button
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-60"
+            className="
+              w-full bg-blue-600 text-white py-3 rounded-xl font-semibold
+              hover:bg-blue-700 hover:-translate-y-0.5
+              transition-all duration-200 shadow-md
+              disabled:opacity-60 disabled:cursor-not-allowed
+            "
           >
             {loading ? "Submitting..." : "Submit Found Item"}
           </button>
@@ -210,7 +261,6 @@ const ReportFound = () => {
         <p className="mt-6 text-xs text-slate-500 text-center">
           Your report helps reunite lost items with their owners
         </p>
-
       </div>
     </div>
   );

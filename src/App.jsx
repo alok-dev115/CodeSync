@@ -18,50 +18,53 @@ function App() {
     <BrowserRouter>
       <Navbar />
 
-      <Routes>
-        {/* 🌐 Public Pages */}
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        {/* <Route path="/test-image" element={<TestImage />} /> */}
+      {/* 👇 Push content below fixed navbar */}
+      <div className="pt-20">
+        <Routes>
+          {/* 🌐 Public Pages */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          {/* <Route path="/test-image" element={<TestImage />} /> */}
 
-        {/* 🔐 Protected Pages */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+          {/* 🔐 Protected Pages */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/report-lost"
-          element={
-            <ProtectedRoute>
-              <ReportLost />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/report-lost"
+            element={
+              <ProtectedRoute>
+                <ReportLost />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/report-found"
-          element={
-            <ProtectedRoute>
-              <ReportFound />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/report-found"
+            element={
+              <ProtectedRoute>
+                <ReportFound />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/matches"
-          element={
-            <ProtectedRoute>
-              <Matches />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+          <Route
+            path="/matches"
+            element={
+              <ProtectedRoute>
+                <Matches />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }
