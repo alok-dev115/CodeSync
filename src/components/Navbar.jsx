@@ -50,7 +50,7 @@ const Navbar = () => {
             <button
               onClick={handleLogout}
               className="
-                ml-4 bg-red-600 hover:bg-red-700
+                ml-4 bg-red-600 cursor-pointer hover:bg-red-700
                 px-4 py-1.5 rounded-md font-semibold
                 transition
               "
@@ -61,7 +61,7 @@ const Navbar = () => {
             <button
               onClick={() => navigate("/login")}
               className="
-                ml-4 bg-blue-600 hover:bg-blue-700
+                ml-4 bg-blue-600 cursor-pointer hover:bg-blue-700
                 px-4 py-1.5 rounded-md font-semibold
                 transition
               "

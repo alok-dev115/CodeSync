@@ -21,6 +21,10 @@ export const buildMatches = async (lostItems, foundItems) => {
   // 1️⃣ BASE SCORING (FAST FILTER)
   for (const lost of lostItems) {
     for (const found of foundItems) {
+
+      // 🚫 STEP 5: REMOVE MATCH AFTER APPROVAL
+      if (lost.claimed || found.claimed) continue;
+
       const textScore = cosineSimilarity(
         lost.textEmbedding,
         found.textEmbedding

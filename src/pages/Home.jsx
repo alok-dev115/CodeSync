@@ -22,49 +22,80 @@ const Home = () => {
       {/* ================= AUTHENTICATED DASHBOARD ================= */}
       {user ? (
         <section className="min-h-screen flex items-center justify-center px-6">
-          <div className="relative bg-white/70 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl p-10 text-center">
+          <div className="relative bg-white/70 backdrop-blur-xl w-full max-w-2xl rounded-3xl shadow-2xl p-10">
 
             {/* Avatar */}
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
               {user.email[0].toUpperCase()}
             </div>
 
-            <h1 className="text-3xl font-bold text-slate-800 mb-1">
+            <h1 className="text-3xl font-bold text-slate-800 mb-1 text-center">
               Welcome back 👋
             </h1>
 
-            <p className="text-slate-600 mb-8 text-sm">
+            <p className="text-slate-600 mb-10 text-sm text-center">
               Signed in as <br />
               <span className="font-medium">{user.email}</span>
             </p>
 
-            <div className="space-y-4">
-              <button
-                onClick={() => navigate("/report-lost")}
-                className="
-                  w-full bg-blue-600 text-white py-3 rounded-xl font-semibold
-                  hover:bg-blue-700 hover:-translate-y-0.5
-                  transition-all duration-200 shadow-md
-                "
-              >
-                Report Lost Item
-              </button>
+            {/* ACTION CARDS */}
+            <div className="grid md:grid-cols-2 gap-6">
 
-              <button
-                onClick={() => navigate("/report-found")}
-                className="
-                  w-full bg-white border border-slate-300 py-3 rounded-xl
-                  font-semibold text-slate-700
-                  hover:bg-slate-100 hover:-translate-y-0.5
-                  transition-all duration-200
-                "
-              >
-                Report Found Item
-              </button>
+              {/* LOST OWNER */}
+              <div className="bg-white rounded-2xl p-6 shadow hover:shadow-lg transition">
+                <h3 className="text-xl font-semibold text-slate-800 mb-2">
+                  Lost an Item?
+                </h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  Report lost items and track claim approvals.
+                </p>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => navigate("/report-lost")}
+                    className="w-full bg-blue-600 cursor-pointer text-white py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition"
+                  >
+                    Report Lost Item
+                  </button>
+
+                  <button
+                    onClick={() => navigate("/dashboard")}
+                    className="w-full bg-slate-100 cursor-pointer text-slate-800 py-2.5 rounded-xl font-semibold hover:bg-slate-200 transition"
+                  >
+                    My Dashboard
+                  </button>
+                </div>
+              </div>
+
+              {/* FINDER */}
+              <div className="bg-white rounded-2xl p-6 shadow hover:shadow-lg transition">
+                <h3 className="text-xl font-semibold text-slate-800 mb-2">
+                  Found an Item?
+                </h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  Submit found items and approve claim requests.
+                </p>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => navigate("/report-found")}
+                    className="w-full bg-green-600 cursor-pointer text-white py-2.5 rounded-xl font-semibold hover:bg-green-700 transition"
+                  >
+                    Report Found Item
+                  </button>
+
+                  <button
+                    onClick={() => navigate("/finder-dashboard")}
+                    className="w-full bg-slate-100 cursor-pointer text-slate-800 py-2.5 rounded-xl font-semibold hover:bg-slate-200 transition"
+                  >
+                    Finder Dashboard
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <p className="mt-8 text-xs text-slate-500">
-              Your reports are securely tracked and verified
+            <p className="mt-10 text-xs text-slate-500 text-center">
+              All actions are logged and verified for security
             </p>
           </div>
         </section>
@@ -85,23 +116,14 @@ const Home = () => {
             <div className="flex justify-center gap-4">
               <button
                 onClick={() => navigate("/report-lost")}
-                className="
-                  bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold
-                  hover:bg-blue-700 hover:-translate-y-0.5
-                  transition-all duration-200 shadow-md
-                "
+                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
               >
                 Report Lost Item
               </button>
 
               <button
                 onClick={() => navigate("/report-found")}
-                className="
-                  bg-white border border-slate-300 px-8 py-3 rounded-lg
-                  font-semibold text-slate-700
-                  hover:bg-slate-100 hover:-translate-y-0.5
-                  transition-all duration-200
-                "
+                className="bg-white border border-slate-300 px-8 py-3 rounded-lg font-semibold text-slate-700 hover:bg-slate-100 transition"
               >
                 Report Found Item
               </button>

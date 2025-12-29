@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase/firebaseConfig";
 
 import { buildMatches } from "../utils/buildMatches";
 import { compareImages } from "../utils/imageMatcher";
-import {
-  listenLostItems,
-  listenFoundItems,
-} from "../firebase/realtimeItems";
+import { listenLostItems, listenFoundItems } from "../firebase/realtimeItems";
+import { createClaim } from "../firebase/claims"; // ✅ FIX 1
 
 import ConfidenceBar from "../components/ConfidenceBar";
 import ConfidenceLegend from "../components/ConfidenceLegend";
@@ -18,14 +18,22 @@ const BASE_WEIGHT = 0.7;
 /* ---------------------------- COMPONENT ---------------------------- */
 
 const Matches = () => {
-  /* ---------------------------- STATE ---------------------------- */
-
   const [lostItems, setLostItems] = useState([]);
   const [foundItems, setFoundItems] = useState([]);
   const [matches, setMatches] = useState([]);
 
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanningId, setScanningId] = useState(null);
+
+  /* ----------------------- AUTH LISTENER ----------------------- */
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUserId(user ? user.uid : null);
+    });
+    return () => unsubscribe();
+  }, []);
 
   /* ----------------------- REALTIME LISTENERS ---------------------- */
 
@@ -43,7 +51,18 @@ const Matches = () => {
 
   useEffect(() => {
     const generateMatches = async () => {
-      if (!lostItems.length || !foundItems.length) {
+      if (!currentUserId) {
+        setMatches([]);
+        setLoading(false);
+        return;
+      }
+
+      // 🔥 ONLY MY LOST ITEMS
+      const myLostItems = lostItems.filter(
+        (item) => item.userId === currentUserId && !item.claimed
+      );
+
+      if (!myLostItems.length || !foundItems.length) {
         setMatches([]);
         setLoading(false);
         return;
@@ -52,7 +71,7 @@ const Matches = () => {
       setLoading(true);
 
       try {
-        const result = await buildMatches(lostItems, foundItems);
+        const result = await buildMatches(myLostItems, foundItems);
         setMatches(result);
       } catch (err) {
         console.error("Match generation failed", err);
@@ -62,7 +81,7 @@ const Matches = () => {
     };
 
     generateMatches();
-  }, [lostItems, foundItems]);
+  }, [lostItems, foundItems, currentUserId]);
 
   /* ----------------------- MANUAL IMAGE SCAN ----------------------- */
 
@@ -117,10 +136,10 @@ const Matches = () => {
       <div className="max-w-5xl mx-auto">
         <header className="text-center mb-8">
           <h2 className="text-3xl font-bold text-slate-800">
-            Possible Matches
+            My Item Matches
           </h2>
           <p className="text-slate-600 text-sm mt-1">
-            Based on text, location, time & image similarity
+            Matches for items you reported as lost
           </p>
         </header>
 
@@ -130,7 +149,7 @@ const Matches = () => {
 
         {matches.length === 0 && (
           <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-md p-10 text-center text-slate-600">
-            No strong matches yet.
+            No matches found for your lost items yet.
           </div>
         )}
 
@@ -160,11 +179,27 @@ const MatchCard = ({ match, index, scanningId, onScan }) => {
     foundItemImage,
     score,
     breakdown,
+    rawLostItem,
+    rawFoundItem,
   } = match;
+
+  const handleClaim = async () => {
+    try {
+      await createClaim({
+        lostItemId: rawLostItem.id,
+        foundItemId: rawFoundItem.id,
+        lostUserId: auth.currentUser.uid,
+        foundUserId: rawFoundItem.userId,
+      });
+
+      alert("✅ Claim request sent to finder");
+    } catch (err) {
+      console.error("Claim failed:", err);
+    }
+  };
 
   return (
     <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg p-6">
-      {/* Images */}
       <div className="flex justify-center gap-8 mb-4">
         {lostItemImage && (
           <ImageBlock src={lostItemImage} label="LOST" color="red" />
@@ -179,6 +214,14 @@ const MatchCard = ({ match, index, scanningId, onScan }) => {
       </h3>
 
       <ConfidenceBar score={score} />
+
+      {/* ✅ CLAIM BUTTON */}
+      <button
+        onClick={handleClaim}
+        className="mt-4 w-full bg-emerald-600 text-white py-2 rounded-xl font-semibold hover:bg-emerald-700 transition"
+      >
+        Claim Item
+      </button>
 
       <div className="grid grid-cols-4 gap-4 text-sm mt-4">
         <Breakdown label="Text" value={`${breakdown.text}%`} />
@@ -210,11 +253,15 @@ const ImageBlock = ({ src, label, color }) => (
   <div className="text-center">
     <img
       src={src}
-      className={`w-24 h-24 object-cover rounded-lg border border-${color}-200`}
       alt={label}
+      className={`w-24 h-24 object-cover rounded-lg border ${
+        color === "red" ? "border-red-200" : "border-green-200"
+      }`}
     />
     <span
-      className={`text-xs text-${color}-500 font-bold block mt-1`}
+      className={`text-xs font-bold block mt-1 ${
+        color === "red" ? "text-red-500" : "text-green-500"
+      }`}
     >
       {label}
     </span>

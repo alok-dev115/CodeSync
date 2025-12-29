@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import FinderDashboard from "./pages/FinderDashboard";
 import ReportLost from "./pages/ReportLost";
 import ReportFound from "./pages/ReportFound";
 import Matches from "./pages/Matches";
@@ -33,6 +34,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finder-dashboard"
+            element={
+              <ProtectedRoute>
+                <FinderDashboard />
               </ProtectedRoute>
             }
           />
