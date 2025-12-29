@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import axios from "axios";
 import { Timestamp } from "firebase/firestore";
 import { addLostItem } from "../firebase/addItem";
 import { ngramEmbedding } from "../utils/ngramEmbedding";
@@ -52,12 +51,11 @@ const ReportLost = () => {
     setSuccess(false);
 
     try {
-      // ✅ Safe Date Handling
+      // ✅ Date & time handling
       const [year, month, day] = date.split("-").map(Number);
       const [hours, minutes] = time.split(":").map(Number);
 
       const jsDate = new Date(year, month - 1, day, hours, minutes);
-
       if (isNaN(jsDate.getTime())) {
         throw new Error("Invalid date/time");
       }
@@ -70,17 +68,22 @@ const ReportLost = () => {
 
       let imageUrl = "";
 
-      // 📷 Upload image (optional)
+      // 📷 Upload image via Netlify Function
       if (image) {
         const formData = new FormData();
         formData.append("image", image);
 
-        const res = await axios.post(
-          "http://localhost:5000/upload",
-          formData
-        );
+        const res = await fetch("/.netlify/functions/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-        imageUrl = res.data.imageUrl;
+        if (!res.ok) {
+          throw new Error("Image upload failed");
+        }
+
+        const data = await res.json();
+        imageUrl = data.imageUrl;
       }
 
       // 🔥 Save to Firestore
@@ -104,9 +107,10 @@ const ReportLost = () => {
       removeImage();
     } catch (err) {
       console.error("Error reporting lost item:", err);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   /* -------------------- UI -------------------- */
@@ -115,7 +119,6 @@ const ReportLost = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
       <div className="bg-white/80 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl p-10">
 
-        {/* Header */}
         <h2 className="text-3xl font-bold text-slate-800 text-center mb-2">
           Report Lost Item
         </h2>
@@ -123,14 +126,12 @@ const ReportLost = () => {
           Let us help you recover your lost belongings
         </p>
 
-        {/* Success Message */}
         {success && (
           <div className="mb-6 text-green-700 bg-green-50 px-4 py-3 rounded-lg text-sm text-center">
             ✅ Lost item reported successfully
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
 
           <input
@@ -181,13 +182,12 @@ const ReportLost = () => {
             className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
           />
 
-          {/* 📷 IMAGE UPLOAD */}
+          {/* IMAGE UPLOAD */}
           <div className="space-y-2">
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               hidden
               onChange={handleImageChange}
             />
@@ -195,67 +195,37 @@ const ReportLost = () => {
             {!preview ? (
               <div
                 onClick={() => fileInputRef.current.click()}
-                className="
-                  border-2 border-dashed border-slate-300
-                  rounded-2xl p-6 text-center cursor-pointer
-                  hover:border-blue-500 hover:bg-blue-50/40
-                  transition-all duration-200
-                "
+                className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/40 transition"
               >
-                <div className="flex flex-col items-center gap-2">
-                  <div className="text-3xl">📷</div>
-                  <p className="font-medium text-slate-700">
-                    Upload an image of the item
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Improves matching accuracy
-                  </p>
-                  <span className="mt-1 text-xs text-blue-600 font-semibold">
-                    Click to browse
-                  </span>
-                </div>
+                <div className="text-3xl mb-1">📷</div>
+                <p className="font-medium text-slate-700">
+                  Upload an image of the item
+                </p>
+                <p className="text-xs text-slate-500">
+                  Improves matching accuracy
+                </p>
               </div>
             ) : (
-              <div className="relative w-full">
+              <div className="relative">
                 <img
                   src={preview}
                   alt="preview"
-                  className="
-                    w-full h-48 object-cover rounded-2xl
-                    border border-slate-200 shadow-sm
-                  "
+                  className="w-full h-48 object-cover rounded-2xl"
                 />
-
-                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition flex items-center justify-center rounded-2xl">
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current.click()}
-                      className="bg-white px-4 py-2 rounded-lg text-sm font-medium shadow"
-                    >
-                      Change
-                    </button>
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 bg-red-600 text-white px-3 py-1 rounded-lg text-xs"
+                >
+                  Remove
+                </button>
               </div>
             )}
           </div>
 
           <button
             disabled={loading}
-            className="
-              w-full bg-blue-600 text-white py-3 rounded-xl font-semibold
-              hover:bg-blue-700 hover:-translate-y-0.5
-              transition-all duration-200 shadow-md
-              disabled:opacity-60 disabled:cursor-not-allowed
-            "
+            className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition disabled:opacity-60"
           >
             {loading ? "Submitting..." : "Submit Lost Item"}
           </button>
