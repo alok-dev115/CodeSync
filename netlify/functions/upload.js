@@ -9,13 +9,19 @@ cloudinary.config({
 });
 
 export const handler = async (event) => {
+  // Only allow POST
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return {
+      statusCode: 405,
+      body: "Method Not Allowed",
+    };
   }
 
-  const form = new formidable.IncomingForm();
-  form.uploadDir = "/tmp";
-  form.keepExtensions = true;
+  const form = new formidable.IncomingForm({
+    uploadDir: "/tmp",
+    keepExtensions: true,
+    multiples: false,
+  });
 
   return new Promise((resolve) => {
     form.parse(event, async (err, fields, files) => {
@@ -27,7 +33,18 @@ export const handler = async (event) => {
         return;
       }
 
-      const file = files.image;
+      // 🔥 IMPORTANT FIX: formidable may return arrays
+      const file = Array.isArray(files.image)
+        ? files.image[0]
+        : files.image;
+
+      if (!file || !file.filepath) {
+        resolve({
+          statusCode: 400,
+          body: JSON.stringify({ error: "No image file received" }),
+        });
+        return;
+      }
 
       try {
         const result = await cloudinary.uploader.upload(file.filepath, {
@@ -36,16 +53,21 @@ export const handler = async (event) => {
           fetch_format: "auto",
         });
 
+        // Cleanup temp file
         fs.unlinkSync(file.filepath);
 
         resolve({
           statusCode: 200,
-          body: JSON.stringify({ imageUrl: result.secure_url }),
+          body: JSON.stringify({
+            imageUrl: result.secure_url,
+          }),
         });
       } catch (e) {
         resolve({
           statusCode: 500,
-          body: JSON.stringify({ error: e.message }),
+          body: JSON.stringify({
+            error: e.message || "Cloudinary upload failed",
+          }),
         });
       }
     });
