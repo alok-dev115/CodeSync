@@ -62,9 +62,7 @@ const ReportLost = () => {
 
       const lostAt = Timestamp.fromDate(jsDate);
 
-      const textEmbedding = ngramEmbedding(
-        itemName + " " + description
-      );
+      const textEmbedding = ngramEmbedding(itemName + " " + description);
 
       let imageUrl = "";
 
@@ -73,7 +71,11 @@ const ReportLost = () => {
         const formData = new FormData();
         formData.append("image", image);
 
-        const res = await fetch("/.netlify/functions/upload", {
+        // const res = await fetch("/.netlify/functions/upload", {
+        //   method: "POST",
+        //   body: formData,
+        // });
+        fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
@@ -118,7 +120,6 @@ const ReportLost = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
       <div className="bg-white/80 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl p-10">
-
         <h2 className="text-3xl font-bold text-slate-800 text-center mb-2">
           Report Lost Item
         </h2>
@@ -133,7 +134,6 @@ const ReportLost = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
           <input
             name="itemName"
             value={itemName}
