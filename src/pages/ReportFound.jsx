@@ -13,6 +13,8 @@ const ReportFound = () => {
     description: "",
   });
 
+  const { itemName, location, date, time, description } = form;
+
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const fileInputRef = useRef(null);
@@ -20,8 +22,10 @@ const ReportFound = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const handleChange = (e) =>
+  /* -------------------- HANDLERS -------------------- */
+  const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -37,158 +41,177 @@ const ReportFound = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /* -------------------- SUBMIT -------------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setSuccess(false);
 
     try {
-      const [y, m, d] = form.date.split("-");
-      const [h, min] = form.time.split(":");
-      const foundAt = Timestamp.fromDate(
-        new Date(y, m - 1, d, h, min)
-      );
+      // 🔒 SAFE JS DATE CREATION
+      const [year, month, day] = date.split("-").map(Number);
+      const [hours, minutes] = time.split(":").map(Number);
 
-      const textEmbedding = ngramEmbedding(
-        form.itemName + " " + form.description
-      );
+      const jsDate = new Date(year, month - 1, day, hours, minutes);
+      if (isNaN(jsDate.getTime())) throw new Error("Invalid date/time");
+
+      const foundAt = Timestamp.fromDate(jsDate);
+
+      // 🔍 Text embedding
+      const textEmbedding = ngramEmbedding(itemName + " " + description);
 
       let imageUrl = "";
 
+      // 📷 IMAGE UPLOAD
       if (image) {
-        const fd = new FormData();
-        fd.append("image", image);
+        const formData = new FormData();
+        formData.append("image", image);
 
         const res = await axios.post(
           "http://localhost:5000/upload",
-          fd
+          formData
         );
 
         imageUrl = res.data.imageUrl;
       }
 
+      // 🔥 Save to Firestore
       await addFoundItem({
-        itemName: form.itemName,
-        location: form.location,
-        description: form.description,
+        itemName,
+        location,
+        description,
         foundAt,
         textEmbedding,
         imageUrl,
       });
 
       setSuccess(true);
-      setForm({
-        itemName: "",
-        location: "",
-        date: "",
-        time: "",
-        description: "",
-      });
+      setForm({ itemName: "", location: "", date: "", time: "", description: "" });
       removeImage();
     } catch (err) {
-      console.error("Error adding found item:", err);
+      console.error("Error submitting found item:", err);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
+  /* -------------------- UI -------------------- */
   return (
-    <div className="max-w-xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">
-        Report Found Item
-      </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
+      <div className="bg-white/80 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl p-10">
 
-      {success && (
-        <p className="text-green-600 mb-4">
-          Found item reported successfully
+        {/* Header */}
+        <h2 className="text-3xl font-bold text-slate-800 text-center mb-2">
+          Report Found Item
+        </h2>
+        <p className="text-slate-600 text-center mb-8 text-sm">
+          Help return a lost item to its owner
         </p>
-      )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="itemName"
-          placeholder="Item Name"
-          value={form.itemName}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded"
-        />
-
-        <input
-          name="location"
-          placeholder="Found Location"
-          value={form.location}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded"
-        />
-
-        <input
-          type="date"
-          name="date"
-          value={form.date}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded"
-        />
-
-        <input
-          type="time"
-          name="time"
-          value={form.time}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded"
-        />
-
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded"
-        />
-
-        {/* 📷 IMAGE UPLOAD ICON */}
-        {!preview && (
-          <label className="cursor-pointer inline-flex items-center gap-2 text-blue-600 font-medium">
-            📷 Upload Image
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              hidden
-              onChange={handleImageChange}
-            />
-          </label>
-        )}
-
-        {preview && (
-          <div className="space-y-2">
-            <img
-              src={preview}
-              alt="preview"
-              className="w-40 h-40 object-cover border rounded"
-            />
-            <button
-              type="button"
-              onClick={removeImage}
-              className="text-red-600 text-sm"
-            >
-              Remove Image
-            </button>
+        {/* Success Message */}
+        {success && (
+          <div className="mb-6 text-green-700 bg-green-50 px-4 py-3 rounded-lg text-sm text-center">
+            ✅ Found item reported successfully
           </div>
         )}
 
-        <button
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded"
-        >
-          {loading ? "Submitting..." : "Submit Found Item"}
-        </button>
-      </form>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+
+          <input
+            name="itemName"
+            value={itemName}
+            onChange={handleChange}
+            placeholder="Item Name"
+            required
+            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+
+          <input
+            name="location"
+            value={location}
+            onChange={handleChange}
+            placeholder="Found Location"
+            required
+            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              type="date"
+              name="date"
+              value={date}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <input
+              type="time"
+              name="time"
+              value={time}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
+          <textarea
+            name="description"
+            value={description}
+            onChange={handleChange}
+            placeholder="Describe the item (color, brand, condition, etc.)"
+            required
+            rows={4}
+            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+          />
+
+          {/* 📷 IMAGE UPLOAD */}
+          <div className="space-y-2">
+            {!preview && (
+              <label className="cursor-pointer inline-flex items-center gap-2 text-blue-600 font-medium">
+                📷 Upload Image
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={handleImageChange}
+                />
+              </label>
+            )}
+
+            {preview && (
+              <div className="relative w-40">
+                <img
+                  src={preview}
+                  alt="preview"
+                  className="w-40 h-40 object-cover rounded-xl border"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-60"
+          >
+            {loading ? "Submitting..." : "Submit Found Item"}
+          </button>
+        </form>
+
+        <p className="mt-6 text-xs text-slate-500 text-center">
+          Your report helps reunite lost items with their owners
+        </p>
+
+      </div>
     </div>
   );
 };

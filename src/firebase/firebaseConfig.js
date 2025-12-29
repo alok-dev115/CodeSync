@@ -9,7 +9,8 @@ apiKey: "AIzaSyBcuzNeMwS6aotQFMC2FAIOQ89_N1P55Uc",
   storageBucket: "lost-found-app-c0f6f.firebasestorage.app",
   messagingSenderId: "1037503224290",
   appId: "1:1037503224290:web:fecc1ae140247a714ac1bb"
-};; 
+};
+
 
 
 const app = initializeApp(firebaseConfig);
