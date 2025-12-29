@@ -25,6 +25,7 @@ export const createClaim = async ({
     foundUserId,
     status: "pending",
     createdAt: serverTimestamp(),
+    resolvedAt: null, // ✅ important for dashboard
   });
 
   // 2️⃣ Notify B (finder)
@@ -44,8 +45,11 @@ export const resolveClaim = async ({
   foundItemId,
   lostUserId,
 }) => {
-  // 1️⃣ Update claim status
-  await updateDoc(doc(db, "claims", claimId), { status });
+  // 1️⃣ Update claim status + resolution time
+  await updateDoc(doc(db, "claims", claimId), {
+    status,
+    resolvedAt: serverTimestamp(), // ✅ needed for “Claimed on <date>”
+  });
 
   if (status === "approved") {
     // 2️⃣ Mark both items as claimed
