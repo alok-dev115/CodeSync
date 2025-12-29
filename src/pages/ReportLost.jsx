@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import axios from "axios";
 import { Timestamp } from "firebase/firestore";
-import { addLostItem } from "../firebase/lostItems";
+import { addLostItem } from "../firebase/addItem";
 import { ngramEmbedding } from "../utils/ngramEmbedding";
 
 const ReportLost = () => {
@@ -12,14 +13,38 @@ const ReportLost = () => {
     description: "",
   });
 
+  const { itemName, location, date, time, description } = form;
+
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const fileInputRef = useRef(null);
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const { itemName, location, date, time, description } = form;
+  /* -------------------- HANDLERS -------------------- */
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImage(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImage(null);
+    setPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  /* -------------------- SUBMIT -------------------- */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,13 +52,13 @@ const ReportLost = () => {
     setSuccess(false);
 
     try {
-      // 🔒 SAFEST POSSIBLE DATE CREATION (NO STRING PARSING)
+      // 🔒 SAFEST DATE CREATION (NO STRING PARSING)
       const [year, month, day] = date.split("-").map(Number);
       const [hours, minutes] = time.split(":").map(Number);
 
       const jsDate = new Date(
         year,
-        month - 1, // JS months are 0-based
+        month - 1,
         day,
         hours,
         minutes
@@ -49,12 +74,29 @@ const ReportLost = () => {
         itemName + " " + description
       );
 
+      let imageUrl = "";
+
+      // 📷 UPLOAD IMAGE
+      if (image) {
+        const formData = new FormData();
+        formData.append("image", image);
+
+        const res = await axios.post(
+          "http://localhost:5000/upload",
+          formData
+        );
+
+        imageUrl = res.data.imageUrl;
+      }
+
+      // 🔥 SAVE TO FIRESTORE
       await addLostItem({
         itemName,
         location,
         description,
         lostAt,
         textEmbedding,
+        imageUrl,
       });
 
       setSuccess(true);
@@ -65,12 +107,15 @@ const ReportLost = () => {
         time: "",
         description: "",
       });
+      removeImage();
     } catch (err) {
       console.error("Error adding lost item:", err);
     }
 
     setLoading(false);
   };
+
+  /* -------------------- UI -------------------- */
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
@@ -142,6 +187,40 @@ const ReportLost = () => {
             className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
           />
 
+          {/* 📷 IMAGE UPLOAD */}
+          <div className="space-y-2">
+            {!preview && (
+              <label className="cursor-pointer inline-flex items-center gap-2 text-blue-600 font-medium">
+                📷 Upload Image
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={handleImageChange}
+                />
+              </label>
+            )}
+
+            {preview && (
+              <div className="relative w-40">
+                <img
+                  src={preview}
+                  alt="preview"
+                  className="w-40 h-40 object-cover rounded-xl border"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             disabled={loading}
             className="
@@ -155,7 +234,6 @@ const ReportLost = () => {
           </button>
         </form>
 
-        {/* Footer hint */}
         <p className="mt-6 text-xs text-slate-500 text-center">
           We’ll notify you when a potential match is found
         </p>

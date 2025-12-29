@@ -14,3 +14,4 @@ export const addFoundItem = async (item) => {
     createdAt: serverTimestamp(),
   });
 };
+

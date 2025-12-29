@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import axios from "axios";
 import { Timestamp } from "firebase/firestore";
-import { addFoundItem } from "../firebase/foundItems";
+import { addFoundItem } from "../firebase/addItem";
 import { ngramEmbedding } from "../utils/ngramEmbedding";
 
 const ReportFound = () => {
@@ -12,60 +13,89 @@ const ReportFound = () => {
     description: "",
   });
 
+  const { itemName, location, date, time, description } = form;
+
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const fileInputRef = useRef(null);
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const { itemName, location, date, time, description } = form;
-
+  /* -------------------- HANDLERS -------------------- */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImage(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImage(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  /* -------------------- SUBMIT -------------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setSuccess(false);
 
     try {
-      // 🔒 SAFEST POSSIBLE DATE CREATION (NO PARSING)
+      // 🔒 SAFE JS DATE CREATION
       const [year, month, day] = date.split("-").map(Number);
       const [hours, minutes] = time.split(":").map(Number);
 
       const jsDate = new Date(year, month - 1, day, hours, minutes);
-
-      if (isNaN(jsDate.getTime())) {
-        throw new Error("Invalid date/time input");
-      }
+      if (isNaN(jsDate.getTime())) throw new Error("Invalid date/time");
 
       const foundAt = Timestamp.fromDate(jsDate);
 
-      const textEmbedding = ngramEmbedding(
-        itemName + " " + description
-      );
+      // 🔍 Text embedding
+      const textEmbedding = ngramEmbedding(itemName + " " + description);
 
+      let imageUrl = "";
+
+      // 📷 IMAGE UPLOAD
+      if (image) {
+        const formData = new FormData();
+        formData.append("image", image);
+
+        const res = await axios.post(
+          "http://localhost:5000/upload",
+          formData
+        );
+
+        imageUrl = res.data.imageUrl;
+      }
+
+      // 🔥 Save to Firestore
       await addFoundItem({
         itemName,
         location,
         description,
         foundAt,
         textEmbedding,
+        imageUrl,
       });
 
       setSuccess(true);
-      setForm({
-        itemName: "",
-        location: "",
-        date: "",
-        time: "",
-        description: "",
-      });
+      setForm({ itemName: "", location: "", date: "", time: "", description: "" });
+      removeImage();
     } catch (err) {
-      console.error("Error adding found item:", err);
+      console.error("Error submitting found item:", err);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
+  /* -------------------- UI -------------------- */
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-6">
       <div className="bg-white/80 backdrop-blur-xl w-full max-w-xl rounded-3xl shadow-2xl p-10">
@@ -115,7 +145,6 @@ const ReportFound = () => {
               required
               className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
             />
-
             <input
               type="time"
               name="time"
@@ -136,23 +165,52 @@ const ReportFound = () => {
             className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
           />
 
+          {/* 📷 IMAGE UPLOAD */}
+          <div className="space-y-2">
+            {!preview && (
+              <label className="cursor-pointer inline-flex items-center gap-2 text-blue-600 font-medium">
+                📷 Upload Image
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={handleImageChange}
+                />
+              </label>
+            )}
+
+            {preview && (
+              <div className="relative w-40">
+                <img
+                  src={preview}
+                  alt="preview"
+                  className="w-40 h-40 object-cover rounded-xl border"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             disabled={loading}
-            className="
-              w-full bg-blue-600 text-white py-3 rounded-xl font-semibold
-              hover:bg-blue-700 hover:-translate-y-0.5
-              transition-all duration-200 shadow-md
-              disabled:opacity-60 disabled:cursor-not-allowed
-            "
+            className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-60"
           >
             {loading ? "Submitting..." : "Submit Found Item"}
           </button>
         </form>
 
-        {/* Footer hint */}
         <p className="mt-6 text-xs text-slate-500 text-center">
           Your report helps reunite lost items with their owners
         </p>
+
       </div>
     </div>
   );

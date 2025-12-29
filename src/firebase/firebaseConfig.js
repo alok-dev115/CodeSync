@@ -2,9 +2,8 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-
-  const firebaseConfig = {
-  apiKey: "AIzaSyBcuzNeMwS6aotQFMC2FAIOQ89_N1P55Uc",
+const firebaseConfig = {
+apiKey: "AIzaSyBcuzNeMwS6aotQFMC2FAIOQ89_N1P55Uc",
   authDomain: "lost-found-app-c0f6f.firebaseapp.com",
   projectId: "lost-found-app-c0f6f",
   storageBucket: "lost-found-app-c0f6f.firebasestorage.app",
