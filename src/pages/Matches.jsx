@@ -218,7 +218,7 @@ const MatchCard = ({ match, index, scanningId, onScan }) => {
       {/* ✅ CLAIM BUTTON */}
       <button
         onClick={handleClaim}
-        className="mt-4 w-full bg-emerald-600 text-white py-2 rounded-xl font-semibold hover:bg-emerald-700 transition"
+        className="mt-4 w-full bg-emerald-600 cursor-pointer text-white py-2 rounded-xl font-semibold hover:bg-emerald-700 transition"
       >
         Claim Item
       </button>

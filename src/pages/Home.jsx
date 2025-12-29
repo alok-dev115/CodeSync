@@ -116,14 +116,14 @@ const Home = () => {
             <div className="flex justify-center gap-4">
               <button
                 onClick={() => navigate("/report-lost")}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                className="bg-blue-600 cursor-pointer text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
               >
                 Report Lost Item
               </button>
 
               <button
                 onClick={() => navigate("/report-found")}
-                className="bg-white border border-slate-300 px-8 py-3 rounded-lg font-semibold text-slate-700 hover:bg-slate-100 transition"
+                className="bg-white border border-slate-300 cursor-pointer px-8 py-3 rounded-lg font-semibold text-slate-700 hover:bg-slate-100 transition"
               >
                 Report Found Item
               </button>
@@ -135,11 +135,11 @@ const Home = () => {
             <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-8">
               <Feature
                 title="AI-Based Matching"
-                desc="Matches items using text, time, and location similarity."
+                desc="Matches items using text, image, time, and location similarity."
               />
               <Feature
                 title="Faster Recovery"
-                desc="Instant notifications when potential matches are found."
+                desc="Instant notifications/update when potential matches are found."
               />
               <Feature
                 title="Secure & Transparent"
