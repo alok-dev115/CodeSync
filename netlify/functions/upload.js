@@ -1,6 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
-import formidable from "formidable";
-import fs from "fs";
+import Busboy from "busboy";
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -9,7 +8,6 @@ cloudinary.config({
 });
 
 export const handler = async (event) => {
-  // Only allow POST
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -17,59 +15,73 @@ export const handler = async (event) => {
     };
   }
 
-  const form = new formidable.IncomingForm({
-    uploadDir: "/tmp",
-    keepExtensions: true,
-    multiples: false,
-  });
-
   return new Promise((resolve) => {
-    form.parse(event, async (err, fields, files) => {
-      if (err) {
-        resolve({
-          statusCode: 500,
-          body: JSON.stringify({ error: "File parse error" }),
-        });
-        return;
-      }
+    const contentType =
+      event.headers["content-type"] || event.headers["Content-Type"];
 
-      // 🔥 IMPORTANT FIX: formidable may return arrays
-      const file = Array.isArray(files.image)
-        ? files.image[0]
-        : files.image;
+    if (!contentType) {
+      resolve({
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing Content-Type header" }),
+      });
+      return;
+    }
 
-      if (!file || !file.filepath) {
+    const busboy = new Busboy({ headers: { "content-type": contentType } });
+
+    let fileBuffer = null;
+
+    busboy.on("file", (_, file) => {
+      const chunks = [];
+      file.on("data", (data) => chunks.push(data));
+      file.on("end", () => {
+        fileBuffer = Buffer.concat(chunks);
+      });
+    });
+
+    busboy.on("finish", async () => {
+      if (!fileBuffer) {
         resolve({
           statusCode: 400,
-          body: JSON.stringify({ error: "No image file received" }),
+          body: JSON.stringify({ error: "No image uploaded" }),
         });
         return;
       }
 
       try {
-        const result = await cloudinary.uploader.upload(file.filepath, {
-          folder: "report-images",
-          quality: "auto",
-          fetch_format: "auto",
+        const uploadResult = await new Promise((res, rej) => {
+          cloudinary.uploader
+            .upload_stream(
+              {
+                folder: "report-images",
+                resource_type: "image",
+                quality: "auto",
+                fetch_format: "auto",
+              },
+              (err, result) => {
+                if (err) rej(err);
+                else res(result);
+              }
+            )
+            .end(fileBuffer);
         });
-
-        // Cleanup temp file
-        fs.unlinkSync(file.filepath);
 
         resolve({
           statusCode: 200,
-          body: JSON.stringify({
-            imageUrl: result.secure_url,
-          }),
+          body: JSON.stringify({ imageUrl: uploadResult.secure_url }),
         });
-      } catch (e) {
+      } catch (err) {
         resolve({
           statusCode: 500,
-          body: JSON.stringify({
-            error: e.message || "Cloudinary upload failed",
-          }),
+          body: JSON.stringify({ error: err.message }),
         });
       }
     });
+
+    const body = event.isBase64Encoded
+      ? Buffer.from(event.body, "base64")
+      : Buffer.from(event.body);
+
+    busboy.end(body);
   });
 };
