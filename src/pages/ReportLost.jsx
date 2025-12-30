@@ -75,7 +75,7 @@ const ReportLost = () => {
         //   method: "POST",
         //   body: formData,
         // });
-        fetch("/api/upload", {
+        const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
